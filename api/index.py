@@ -64,6 +64,15 @@ _model_bundle = None
 def _get_bundle():
     global _model_bundle
     if _model_bundle is None:
+        if os.environ.get("VERCEL"):
+            tmp_model = Path("/tmp/risk_model.pkl")
+            if config.RISK_MODEL_PATH.exists():
+                try:
+                    _model_bundle = risk.load_model()
+                    return _model_bundle
+                except Exception:
+                    pass
+            config.RISK_MODEL_PATH = tmp_model
         _model_bundle = risk.ensure_model()
     return _model_bundle
 
@@ -649,3 +658,4 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify({"error": "Internal server error", "detail": str(e)}), 500
+
