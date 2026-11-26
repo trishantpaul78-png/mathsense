@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+data/app.db
+streamlit.log
+app.py
+.streamlit/
+.freebuff/
+.cloud-attachments/
+project-id
