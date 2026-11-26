@@ -1,0 +1,3 @@
+[client]
+# "minimal" removes the top-right toolbar: no Deploy button, no dev menu.
+toolbarMode = "minimal"

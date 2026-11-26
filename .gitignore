@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local data / artefacts
+data/app.db
+streamlit.log
+
+# Editor / tooling metadata
+.freebuff/
+.cloud-attachments/
+project-id
+
+# OS
+.DS_Store
+Thumbs.db

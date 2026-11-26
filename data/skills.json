@@ -1,0 +1,95 @@
+{
+  "subject": "First-year engineering mathematics",
+  "skills": [
+    {
+      "id": "functions",
+      "name": "Functions and Graphs",
+      "short": "Functions",
+      "description": "Function notation, domain and range, composition, symmetry.",
+      "prerequisites": [],
+      "keywords": ["function notation", "domain", "range", "composition", "odd and even functions"]
+    },
+    {
+      "id": "limits",
+      "name": "Limits and Continuity",
+      "short": "Limits",
+      "description": "Finite limits, limits at infinity, standard trigonometric limits.",
+      "prerequisites": ["functions"],
+      "keywords": ["limit laws", "limits at infinity", "sin(x)/x", "continuity"]
+    },
+    {
+      "id": "derivatives",
+      "name": "Derivatives",
+      "short": "Derivatives",
+      "description": "Power, product, chain and trigonometric rules.",
+      "prerequisites": ["limits"],
+      "keywords": ["differentiation rules", "chain rule", "product rule", "trig derivatives"]
+    },
+    {
+      "id": "applications_derivatives",
+      "name": "Applications of Derivatives",
+      "short": "Applications",
+      "description": "Stationary points, monotonicity and optimisation on intervals.",
+      "prerequisites": ["derivatives"],
+      "keywords": ["critical points", "increasing decreasing", "second derivative test", "optimisation"]
+    },
+    {
+      "id": "integrals",
+      "name": "Integrals",
+      "short": "Integrals",
+      "description": "Antiderivatives, definite integrals and simple substitution.",
+      "prerequisites": ["limits"],
+      "keywords": ["antiderivative", "definite integral", "substitution", "area under curve"]
+    },
+    {
+      "id": "matrices",
+      "name": "Matrices",
+      "short": "Matrices",
+      "description": "Matrix addition, multiplication, transpose and dimensions.",
+      "prerequisites": [],
+      "keywords": ["matrix multiplication", "transpose", "dimensions", "identity matrix"]
+    },
+    {
+      "id": "determinants",
+      "name": "Determinants",
+      "short": "Determinants",
+      "description": "2x2 and 3x3 determinants, determinant properties and singularity.",
+      "prerequisites": ["matrices"],
+      "keywords": ["2x2 determinant", "triangular matrix", "singular matrix", "scaling property"]
+    },
+    {
+      "id": "linear_systems",
+      "name": "Linear Systems",
+      "short": "Linear systems",
+      "description": "Solving linear systems, consistency and Cramer's rule.",
+      "prerequisites": ["determinants"],
+      "keywords": ["substitution", "consistency", "infinite solutions", "Cramer's rule"]
+    },
+    {
+      "id": "eigenvalues",
+      "name": "Eigenvalues and Eigenvectors",
+      "short": "Eigenvalues",
+      "description": "Characteristic equation, trace and determinant relations.",
+      "prerequisites": ["linear_systems"],
+      "keywords": ["characteristic equation", "trace", "determinant", "eigenvalues"]
+    },
+    {
+      "id": "partial_derivatives",
+      "name": "Partial Derivatives",
+      "short": "Partial derivs",
+      "description": "First and mixed second partial derivatives of two-variable functions.",
+      "prerequisites": ["derivatives"],
+      "keywords": ["partial derivative", "mixed partials", "chain rule", "two-variable functions"]
+    }
+  ],
+  "edges": [
+    ["functions", "limits"],
+    ["limits", "derivatives"],
+    ["derivatives", "applications_derivatives"],
+    ["limits", "integrals"],
+    ["matrices", "determinants"],
+    ["determinants", "linear_systems"],
+    ["linear_systems", "eigenvalues"],
+    ["derivatives", "partial_derivatives"]
+  ]
+}
