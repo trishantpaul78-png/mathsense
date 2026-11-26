@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adaptive Maths Gap Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; }
+    .tab-btn { transition: all 0.15s; }
+    .tab-btn:hover { color: #2563eb; }
+    .loader { border: 3px solid #e5e7eb; border-top: 3px solid #2563eb; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .mastery-bar { transition: width 0.4s ease; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Disclaimer Banner -->
+  <div class="bg-orange-50 border border-orange-300 text-orange-900 text-sm px-4 py-2 text-center">
+    <strong>Please read:</strong> This tool identifies learning gaps, not clinical conditions. Teacher review required.
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">📐 Adaptive Maths Gap Lab</h1>
+        <p class="text-xs text-gray-500">First-year engineering mathematics — adaptive practice, early gap detection and personalised next steps.</p>
+      </div>
+      <!-- Student selector -->
+      <div class="flex items-center gap-2">
+        <input type="text" id="studentName" placeholder="e.g. Asha-01"
+               class="border rounded-lg px-3 py-1.5 text-sm w-40 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        <button onclick="selectStudent()" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700 transition">
+          Use student
+        </button>
+        <span id="activeStudent" class="text-sm text-green-700 font-medium ml-2"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="bg-white border-b">
+    <div class="max-w-7xl mx-auto px-4 flex gap-6">
+      <button class="tab-btn active py-3 text-sm" onclick="switchTab('quiz', this)">Student Quiz</button>
+      <button class="tab-btn py-3 text-sm" onclick="switchTab('report', this)">My Report</button>
+      <button class="tab-btn py-3 text-sm" onclick="switchTab('dashboard', this)">Teacher Dashboard</button>
+      <button class="tab-btn py-3 text-sm" onclick="switchTab('evaluation', this)">Model Evaluation</button>
+    </div>
+  </nav>
+
+  <!-- Tab Content -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- QUIZ TAB -->
+    <div id="tab-quiz">
+      <div id="quiz-no-student" class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
+        Enter a student name in the header to begin.
+      </div>
+      <div id="quiz-content" class="hidden">
+        <!-- Stats bar -->
+        <div class="grid grid-cols-4 gap-4 mb-6" id="quiz-stats"></div>
+        <p class="text-xs text-gray-500 mb-4" id="quiz-se-caption"></p>
+
+        <!-- Feedback area -->
+        <div id="quiz-feedback" class="hidden mb-6"></div>
+
+        <!-- Question area -->
+        <div id="quiz-question" class="hidden">
+          <p class="text-xs text-gray-500 mb-1" id="quiz-meta"></p>
+          <h3 class="text-lg font-semibold mb-4" id="quiz-text"></h3>
+          <div id="quiz-options" class="space-y-2 mb-4"></div>
+          <div class="flex items-center gap-3 mb-4">
+            <button onclick="showHint()" class="text-sm text-blue-600 hover:underline">Show hint</button>
+            <span id="quiz-hint" class="text-sm text-blue-700 bg-blue-50 px-3 py-1 rounded hidden"></span>
+          </div>
+          <button onclick="submitAnswer()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+            Submit answer
+          </button>
+        </div>
+
+        <!-- Done message -->
+        <div id="quiz-done" class="hidden bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 text-sm"></div>
+
+        <hr class="my-6">
+        <!-- Mastery bars -->
+        <div id="quiz-mastery-chart" class="mt-4"></div>
+        <!-- Recent answers -->
+        <div id="quiz-recent" class="mt-4"></div>
+      </div>
+    </div>
+
+    <!-- REPORT TAB -->
+    <div id="tab-report" class="hidden">
+      <div id="report-no-student" class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
+        Select a student first. Create one in the header or load the demo class in Teacher Dashboard.
+      </div>
+      <div id="report-content" class="hidden">
+        <div class="grid grid-cols-3 gap-6">
+          <div>
+            <div id="report-risk-gauge"></div>
+            <div id="report-risk-info" class="mt-2"></div>
+            <div class="mt-4" id="report-theta-metric"></div>
+          </div>
+          <div class="col-span-2" id="report-radar"></div>
+        </div>
+        <hr class="my-6">
+        <div class="grid grid-cols-5 gap-6">
+          <div class="col-span-3">
+            <h4 class="font-semibold mb-2">Prerequisite map</h4>
+            <p class="text-xs text-gray-500 mb-2">Red ring = root-cause prerequisite, blue ring = current focus.</p>
+            <div id="report-prereq-graph"></div>
+          </div>
+          <div class="col-span-2">
+            <h4 class="font-semibold mb-2">Where to start</h4>
+            <div id="report-where"></div>
+          </div>
+        </div>
+        <hr class="my-6">
+        <h4 class="font-semibold mb-2">Personalised study plan</h4>
+        <button onclick="generatePlan()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm mb-4">
+          Generate personalised plan
+        </button>
+        <div id="report-plan"></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="hidden">
+      <button onclick="loadDemoClass()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm mb-4">
+        Load synthetic demo class
+      </button>
+      <span id="dashboard-status" class="text-sm text-green-700 ml-2"></span>
+      <div id="dashboard-empty" class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm mt-4">
+        No students yet. Load the synthetic demo class above.
+      </div>
+      <div id="dashboard-content" class="hidden">
+        <h4 class="font-semibold mb-2 mt-4">Class mastery heatmap</h4>
+        <div id="dashboard-heatmap"></div>
+        <h4 class="font-semibold mb-2 mt-6">Students needing support first</h4>
+        <p class="text-xs text-gray-500 mb-2">Sorted by predicted risk. Teacher review required before any action.</p>
+        <div id="dashboard-table" class="overflow-x-auto"></div>
+        <hr class="my-6">
+        <h4 class="font-semibold mb-2">Class insight</h4>
+        <button onclick="generateClassInsight()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm mb-4">
+          Generate class summary
+        </button>
+        <div id="dashboard-insight" class="whitespace-pre-line text-sm text-gray-700"></div>
+      </div>
+    </div>
+
+    <!-- EVALUATION TAB -->
+    <div id="tab-evaluation" class="hidden">
+      <div id="eval-loading" class="flex items-center gap-2 text-sm text-gray-500"><div class="loader"></div> Loading evaluation data...</div>
+      <div id="eval-content" class="hidden">
+        <p class="text-xs text-gray-500 mb-4" id="eval-caption"></p>
+        <div id="eval-comparison" class="mb-6 overflow-x-auto"></div>
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <h4 class="font-semibold mb-2">ROC curve</h4>
+            <div id="eval-roc"></div>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-2">Confusion matrix</h4>
+            <div id="eval-confusion"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-6 mt-6">
+          <div>
+            <h4 class="font-semibold mb-2">Earliness</h4>
+            <div id="eval-earliness"></div>
+            <p class="text-xs text-gray-500 mt-1" id="eval-earliness-caption"></p>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-2">What the model relies on</h4>
+            <div id="eval-importance"></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-3 text-sm mt-6">
+          Baseline comparison: the model needs to beat "recent accuracy below 50%" while flagging students earlier in the session.
+          Earliness counts the first question at which predicted risk crosses 50%.
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+<script>
+// =========================================================================
+// State
+// =========================================================================
+const API = '/api';
+let state = {
+  studentId: null,
+  studentName: null,
+  currentQuestion: null,
+  selectedOption: null,
+  hintShown: false,
+  dashboardStats: null,
+};
+
+// =========================================================================
+// Utils
+// =========================================================================
+async function api(path, opts = {}) {
+  const url = API + path;
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  return res.json();
+}
+
+function $(id) { return document.getElementById(id); }
+
+function switchTab(name, btn) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  $('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (name === 'report') loadReport();
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'evaluation') loadEvaluation();
+}
+
+function metricCard(label, value, help = '') {
+  return `<div class="bg-white rounded-lg border p-3">
+    <p class="text-xs text-gray-500">${label}</p>
+    <p class="text-xl font-bold text-gray-900">${value}</p>
+    ${help ? `<p class="text-xs text-gray-400 mt-1">${help}</p>` : ''}
+  </div>`;
+}
+
+function masteryColor(v) {
+  if (v >= 0.70) return '#16a34a';
+  if (v >= 0.50) return '#84cc16';
+  if (v >= 0.40) return '#f59e0b';
+  return '#dc2626';
+}
+
+function riskColor(v) {
+  if (v >= 0.66) return '#dc2626';
+  if (v >= 0.40) return '#f59e0b';
+  return '#16a34a';
+}
+
+// =========================================================================
+// Student Selection
+// =========================================================================
+async function selectStudent() {
+  const name = $('studentName').value.trim();
+  if (!name) return;
+  const data = await api('/student', { method: 'POST', body: JSON.stringify({ name }) });
+  if (data.error) { alert(data.error); return; }
+  state.studentId = data.student_id;
+  state.studentName = data.name;
+  $('activeStudent').textContent = `✓ Active: ${data.name}`;
+  state.currentQuestion = null;
+  state.selectedOption = null;
+  loadQuiz();
+}
+
+// =========================================================================
+// QUIZ
+// =========================================================================
+async function loadQuiz() {
+  if (!state.studentId) {
+    $('quiz-no-student').classList.remove('hidden');
+    $('quiz-content').classList.add('hidden');
+    return;
+  }
+  $('quiz-no-student').classList.add('hidden');
+  $('quiz-content').classList.remove('hidden');
+  $('quiz-feedback').classList.add('hidden');
+  $('quiz-done').classList.add('hidden');
+
+  const data = await api(`/question?student_id=${state.studentId}`);
+
+  // Stats
+  $('quiz-stats').innerHTML =
+    metricCard('Questions answered', data.responses_count, 'Seed bank has 40 items.') +
+    metricCard('Ability (θ)', data.theta >= 0 ? '+' + data.theta : data.theta, 'MAP estimate, N(0,1) prior.') +
+    metricCard('Ability percentile', data.percentile + 'th') +
+    metricCard('Mean mastery', Math.round(data.mean_mastery * 100) + '%', 'Across all ten skills.');
+  $('quiz-se-caption').textContent = `Standard error of θ: ${data.se} — it shrinks as more answers arrive.`;
+
+  if (data.done) {
+    $('quiz-question').classList.add('hidden');
+    $('quiz-done').classList.remove('hidden');
+    $('quiz-done').textContent = data.message;
+  } else {
+    $('quiz-question').classList.remove('hidden');
+    state.currentQuestion = data.question;
+    state.selectedOption = null;
+    state.hintShown = false;
+    $('quiz-hint').classList.add('hidden');
+
+    $('quiz-meta').textContent = `Skill: ${data.question.skill_name}  |  Difficulty: b = ${data.question.difficulty >= 0 ? '+' : ''}${data.question.difficulty.toFixed(1)}  |  Answer ${data.responses_count + 1}`;
+    $('quiz-text').textContent = data.question.question;
+
+    let optionsHtml = '';
+    data.question.options.forEach((opt, i) => {
+      const letter = String.fromCharCode(65 + i);
+      optionsHtml += `<label class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-blue-50 transition" onclick="selectOption(${i}, this)">
+        <input type="radio" name="quiz-opt" value="${i}" class="accent-blue-600">
+        <span class="text-sm"><strong>${letter}.</strong> ${opt}</span>
+      </label>`;
+    });
+    $('quiz-options').innerHTML = optionsHtml;
+  }
+
+  loadMasteryChart();
+}
+
+function selectOption(idx, el) {
+  state.selectedOption = idx;
+  document.querySelectorAll('#quiz-options label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-400'));
+  el.classList.add('bg-blue-50', 'border-blue-400');
+}
+
+function showHint() {
+  if (state.currentQuestion && state.currentQuestion.hint) {
+    $('quiz-hint').textContent = '💡 ' + state.currentQuestion.hint;
+    $('quiz-hint').classList.remove('hidden');
+    state.hintShown = true;
+  }
+}
+
+async function submitAnswer() {
+  if (state.selectedOption === null) { alert('Pick one option first.'); return; }
+  const q = state.currentQuestion;
+
+  const data = await api('/answer', {
+    method: 'POST',
+    body: JSON.stringify({
+      student_id: state.studentId,
+      question_id: q.id,
+      choice_index: state.selectedOption,
+      time_taken: 15,
+      hint_used: state.hintShown,
+    })
+  });
+
+  // Show feedback
+  $('quiz-question').classList.add('hidden');
+  $('quiz-feedback').classList.remove('hidden');
+
+  let html = '';
+  if (data.correct) {
+    html += `<div class="bg-green-50 border border-green-300 text-green-800 rounded-lg p-3 text-sm font-medium mb-3">✓ Correct — nicely done.</div>`;
+  } else {
+    html += `<div class="bg-red-50 border border-red-300 text-red-800 rounded-lg p-3 text-sm font-medium mb-3">✗ Not quite. The correct answer is <strong>${data.correct_answer}</strong>.</div>`;
+  }
+  html += `<p class="text-sm mb-2"><strong>Question:</strong> ${q.question}</p>`;
+  if (data.explanation) html += `<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-3 text-sm mb-2"><strong>Why:</strong> ${data.explanation}</div>`;
+  if (data.ai_explanation) html += `<div class="text-sm mb-2"><strong>Tutor note:</strong> ${data.ai_explanation}</div>`;
+  html += `<p class="text-xs text-gray-500 mb-3">Mastery for ${data.skill_name} is now ${Math.round(data.new_mastery * 100)}%.</p>`;
+  html += `<button onclick="nextQuestion()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm">Next question</button>`;
+
+  $('quiz-feedback').innerHTML = html;
+
+  // Update stats
+  $('quiz-stats').innerHTML =
+    metricCard('Questions answered', data.responses_count) +
+    metricCard('Ability (θ)', data.theta >= 0 ? '+' + data.theta : data.theta) +
+    metricCard('Ability percentile', data.percentile + 'th') +
+    metricCard('Mean mastery', Math.round(data.mean_mastery * 100) + '%');
+
+  loadMasteryChart();
+}
+
+function nextQuestion() {
+  state.currentQuestion = null;
+  state.selectedOption = null;
+  loadQuiz();
+}
+
+async function loadMasteryChart() {
+  if (!state.studentId) return;
+  const data = await api(`/mastery?student_id=${state.studentId}`);
+
+  // Bar chart
+  const sorted = [...data.mastery].sort((a, b) => a.mastery - b.mastery);
+  Plotly.newPlot('quiz-mastery-chart', [{
+    type: 'bar', orientation: 'h',
+    x: sorted.map(m => m.mastery),
+    y: sorted.map(m => m.short),
+    marker: { color: sorted.map(m => masteryColor(m.mastery)) },
+    text: sorted.map(m => Math.round(m.mastery * 100) + '%'),
+    textposition: 'outside',
+    hovertemplate: '%{y}: %{x:.0%}<extra></extra>',
+  }], {
+    title: 'Mastery by skill', height: 380,
+    margin: { l: 120, r: 40, t: 40, b: 20 },
+    xaxis: { range: [0, 1.12], tickformat: '.0%' },
+    template: 'plotly_white',
+  }, { responsive: true });
+
+  // Recent answers table
+  if (data.recent.length) {
+    let table = `<h4 class="font-semibold mb-2">Recent answers</h4><table class="w-full text-sm border-collapse">
+      <tr class="bg-gray-100"><th class="text-left p-2">Skill</th><th class="p-2">Result</th><th class="p-2">Seconds</th><th class="p-2">Hints</th></tr>`;
+    data.recent.forEach(r => {
+      table += `<tr class="border-t"><td class="p-2">${r.skill}</td>
+        <td class="p-2 text-center ${r.correct ? 'text-green-600' : 'text-red-600'}">${r.correct ? 'Correct' : 'Wrong'}</td>
+        <td class="p-2 text-center">${r.time_taken}</td><td class="p-2 text-center">${r.hints}</td></tr>`;
+    });
+    table += '</table>';
+    $('quiz-recent').innerHTML = table;
+  } else {
+    $('quiz-recent').innerHTML = '<p class="text-xs text-gray-500">No answers yet — the first one starts your map.</p>';
+  }
+}
+
+// =========================================================================
+// REPORT
+// =========================================================================
+async function loadReport() {
+  if (!state.studentId) {
+    $('report-no-student').classList.remove('hidden');
+    $('report-content').classList.add('hidden');
+    return;
+  }
+  $('report-no-student').classList.add('hidden');
+  $('report-content').classList.remove('hidden');
+
+  const data = await api(`/report?student_id=${state.studentId}`);
+
+  // Risk gauge
+  if (data.risk) {
+    const pct = data.risk.percent;
+    const color = riskColor(pct / 100);
+    Plotly.newPlot('report-risk-gauge', [{
+      type: 'indicator', mode: 'gauge+number',
+      value: pct, number: { suffix: '%' },
+      title: { text: 'Risk of falling behind', font: { size: 14 } },
+      gauge: {
+        axis: { range: [0, 100] }, bar: { color },
+        steps: [
+          { range: [0, 40], color: '#dcfce7' },
+          { range: [40, 66], color: '#fef3c7' },
+          { range: [66, 100], color: '#fee2e2' },
+        ],
+        threshold: { line: { color: '#111827', width: 3 }, thickness: 0.75, value: 50 },
+      },
+    }], { height: 240, margin: { l: 20, r: 20, t: 40, b: 10 }, template: 'plotly_white' }, { responsive: true });
+
+    let infoHtml = `<p class="text-sm"><strong>Band:</strong> ${data.risk.label}</p>
+      <p class="text-xs text-gray-500">Based on ${data.risk.n_responses} responses. A probability, not a verdict.</p>
+      <p class="text-sm font-medium mt-2">Top drivers</p><ul class="text-sm text-gray-700">`;
+    data.risk.top_factors.forEach(f => {
+      infoHtml += `<li>• ${f.label}: ${f.value} (${f.direction} risk)</li>`;
+    });
+    infoHtml += '</ul>';
+    $('report-risk-info').innerHTML = infoHtml;
+  } else {
+    $('report-risk-gauge').innerHTML = '<p class="text-gray-400 text-sm">Risk: n/a</p>';
+    $('report-risk-info').innerHTML = '';
+  }
+
+  $('report-theta-metric').innerHTML = metricCard('Ability (θ)', `${data.theta >= 0 ? '+' : ''}${data.theta}`, `SE ${data.se}`);
+
+  // Radar chart
+  const skills = data.mastery;
+  const radarVals = skills.map(s => s.mastery);
+  const radarLabels = skills.map(s => s.short);
+  Plotly.newPlot('report-radar', [{
+    type: 'scatterpolar', fill: 'toself',
+    r: [...radarVals, radarVals[0]],
+    theta: [...radarLabels, radarLabels[0]],
+    line: { color: '#2563eb', width: 2 },
+    fillcolor: 'rgba(37, 99, 235, 0.18)',
+    hovertemplate: '%{theta}: %{r:.0%}<extra></extra>',
+  }], {
+    height: 400, margin: { l: 50, r: 50, t: 30, b: 30 },
+    polar: { radialaxis: { range: [0, 1], tickformat: '.0%' } },
+    template: 'plotly_white', showlegend: false,
+  }, { responsive: true });
+
+  // Prerequisite graph
+  const graphData = await api('/prereq-graph');
+  const masteryMap = data.mastery_map;
+  const rootSkill = data.root_cause ? data.root_cause.skill : null;
+  const targetSkill = data.target_skill;
+
+  // Edges
+  let edgeX = [], edgeY = [];
+  graphData.edges.forEach(e => {
+    const from = graphData.nodes.find(n => n.id === e.from);
+    const to = graphData.nodes.find(n => n.id === e.to);
+    if (from && to) { edgeX.push(from.x, to.x, null); edgeY.push(from.y, to.y, null); }
+  });
+
+  const nodeColors = graphData.nodes.map(n => masteryColor(masteryMap[n.id] || 0));
+  const ringColors = graphData.nodes.map(n => n.id === rootSkill ? '#dc2626' : n.id === targetSkill ? '#2563eb' : '#ffffff');
+  const ringWidths = graphData.nodes.map(n => (n.id === rootSkill || n.id === targetSkill) ? 4 : 1.5);
+
+  Plotly.newPlot('report-prereq-graph', [
+    { type: 'scatter', mode: 'lines', x: edgeX, y: edgeY, line: { color: '#cbd5e1', width: 2 }, hoverinfo: 'skip', showlegend: false },
+    { type: 'scatter', mode: 'markers+text',
+      x: graphData.nodes.map(n => n.x), y: graphData.nodes.map(n => n.y),
+      marker: { size: 28, color: nodeColors, line: { color: ringColors, width: ringWidths } },
+      text: graphData.nodes.map(n => n.short), textposition: 'bottom center', textfont: { size: 10 },
+      customdata: graphData.nodes.map(n => [n.name, masteryMap[n.id] || 0]),
+      hovertemplate: '%{customdata[0]}<br>Mastery %{customdata[1]:.0%}<extra></extra>',
+      showlegend: false,
+    }
+  ], {
+    height: 400, margin: { l: 10, r: 10, t: 20, b: 10 },
+    xaxis: { visible: false }, yaxis: { visible: false },
+    template: 'plotly_white', showlegend: false,
+  }, { responsive: true });
+
+  // Where to start
+  let whereHtml = `<p class="text-sm mb-2">Current focus: <strong>${data.target_skill_name}</strong> (${Math.round(masteryMap[targetSkill] * 100)}% mastery).</p>`;
+  if (data.root_cause) {
+    const rc = data.root_cause;
+    if (rc.found) {
+      whereHtml += `<div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm mb-2">Root-cause gap: <strong>${rc.name}</strong> (${Math.round(rc.mastery * 100)}%). ${rc.reason}.</div>`;
+    } else {
+      whereHtml += `<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-3 text-sm mb-2">Weakest prerequisite: <strong>${rc.name}</strong> (${Math.round(rc.mastery * 100)}%). ${rc.reason}.</div>`;
+    }
+    if (rc.path_names.length > 1) {
+      whereHtml += `<p class="text-xs text-gray-500">Chain: ${rc.path_names.join(' → ')}</p>`;
+    }
+  }
+  $('report-where').innerHTML = whereHtml;
+  $('report-plan').innerHTML = '';
+}
+
+async function generatePlan() {
+  if (!state.studentId) return;
+  $('report-plan').innerHTML = '<div class="flex items-center gap-2 text-sm text-gray-500"><div class="loader"></div> Building a plan...</div>';
+  const plan = await api('/plan', { method: 'POST', body: JSON.stringify({ student_id: state.studentId }) });
+
+  let html = `<p class="text-sm mb-2"><strong>Root-cause skill:</strong> ${plan.root_cause_skill_name}</p>
+    <p class="text-sm text-gray-700 mb-4">${plan.why}</p>
+    <h5 class="font-semibold mb-2">Three targeted exercises</h5>
+    <div class="grid grid-cols-3 gap-4 mb-4">`;
+  (plan.exercises || []).forEach(ex => {
+    html += `<div class="bg-white border rounded-lg p-3">
+      <p class="text-xs font-medium text-blue-700 mb-1">${ex.skill_name}</p>
+      <p class="text-sm">${ex.task}</p>
+      ${ex.hint ? `<p class="text-xs text-gray-500 mt-1">Hint: ${ex.hint}</p>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+
+  const we = plan.worked_example;
+  if (we) {
+    html += `<details open class="bg-white border rounded-lg p-4"><summary class="font-semibold cursor-pointer">Worked example</summary>
+      <p class="text-xs font-medium text-blue-700 mt-2">${we.skill_name}</p>
+      <p class="text-sm mt-1">${we.problem}</p><ol class="list-decimal list-inside text-sm mt-2 space-y-1">`;
+    (we.steps || []).forEach(s => { html += `<li>${s}</li>`; });
+    html += `</ol><div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-2 text-sm mt-2">Answer: ${we.answer}</div></details>`;
+  }
+  if (plan.estimated_time_minutes) html += `<p class="text-xs text-gray-500 mt-2">Estimated time: ~${plan.estimated_time_minutes} minutes</p>`;
+  $('report-plan').innerHTML = html;
+}
+
+// =========================================================================
+// TEACHER DASHBOARD
+// =========================================================================
+async function loadDemoClass() {
+  $('dashboard-status').innerHTML = '<div class="loader"></div> Simulating...';
+  const data = await api('/demo-class', { method: 'POST' });
+  $('dashboard-status').textContent = data.message || `Loaded ${data.count} students.`;
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  const data = await api('/dashboard');
+  if (!data.risk_table || data.risk_table.length === 0) {
+    $('dashboard-empty').classList.remove('hidden');
+    $('dashboard-content').classList.add('hidden');
+    return;
+  }
+  $('dashboard-empty').classList.add('hidden');
+  $('dashboard-content').classList.remove('hidden');
+  state.dashboardStats = data.stats;
+
+  // Heatmap
+  const hm = data.heatmap;
+  Plotly.newPlot('dashboard-heatmap', [{
+    type: 'heatmap', z: hm.z, x: hm.x, y: hm.y,
+    colorscale: 'RdYlGn', zmin: 0, zmax: 1,
+    colorbar: { title: 'Mastery', tickformat: '.0%' },
+    text: hm.z.map(row => row.map(v => Math.round(v * 100) + '%')),
+    texttemplate: '%{text}', textfont: { size: 9 },
+    hovertemplate: '%{y}<br>%{x}: %{z:.0%}<extra></extra>',
+  }], {
+    height: Math.max(380, 26 * hm.y.length + 90),
+    margin: { l: 120, r: 20, t: 40, b: 10 },
+    xaxis: { side: 'top', tickangle: -25 },
+    yaxis: { autorange: 'reversed' },
+    template: 'plotly_white',
+  }, { responsive: true });
+
+  // Risk table
+  let table = `<table class="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden">
+    <tr class="bg-gray-100 text-left"><th class="p-2">Student</th><th class="p-2">Risk %</th><th class="p-2">Band</th>
+    <th class="p-2">Avg mastery %</th><th class="p-2">Weakest skill</th><th class="p-2">Root cause</th><th class="p-2">Answers</th></tr>`;
+  data.risk_table.forEach(r => {
+    const bgClass = r.risk_pct >= 66 ? 'bg-red-50' : r.risk_pct >= 40 ? 'bg-yellow-50' : '';
+    table += `<tr class="border-t ${bgClass}">
+      <td class="p-2">${r.name}</td>
+      <td class="p-2"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="h-2.5 rounded-full" style="width:${r.risk_pct}%;background:${riskColor(r.risk_pct/100)}"></div></div>${r.risk_pct}%</td>
+      <td class="p-2">${r.band}</td>
+      <td class="p-2">${r.avg_mastery_pct}%</td>
+      <td class="p-2">${r.weakest_skill}</td>
+      <td class="p-2">${r.root_cause}</td>
+      <td class="p-2">${r.answers}</td></tr>`;
+  });
+  table += '</table>';
+  $('dashboard-table').innerHTML = table;
+}
+
+async function generateClassInsight() {
+  if (!state.dashboardStats) { alert('Load dashboard data first.'); return; }
+  $('dashboard-insight').innerHTML = '<div class="flex items-center gap-2"><div class="loader"></div> Reading the class snapshot...</div>';
+  const data = await api('/class-insight', { method: 'POST', body: JSON.stringify(state.dashboardStats) });
+  $('dashboard-insight').textContent = data.insight;
+}
+
+// =========================================================================
+// MODEL EVALUATION
+// =========================================================================
+let evalLoaded = false;
+async function loadEvaluation() {
+  if (evalLoaded) return;
+  $('eval-loading').classList.remove('hidden');
+  $('eval-content').classList.add('hidden');
+
+  const data = await api('/evaluation');
+  if (data.error) { $('eval-loading').innerHTML = `<p class="text-red-600 text-sm">${data.error}</p>`; return; }
+
+  evalLoaded = true;
+  $('eval-loading').classList.add('hidden');
+  $('eval-content').classList.remove('hidden');
+
+  const c = data.caption;
+  $('eval-caption').textContent = `Trained ${c.trained_at} on ${c.n_train_students} synthetic students (${c.n_train} snapshots), tested on ${c.n_test_students}. Hidden label: mean final mastery < 0.50 (${Math.round(c.at_risk_rate * 100)}% at risk).`;
+
+  // Comparison table
+  let compTable = '<table class="w-full text-sm border-collapse bg-white rounded-lg"><tr class="bg-gray-100"><th class="p-2 text-left">Model</th><th class="p-2">Accuracy</th><th class="p-2">Precision</th><th class="p-2">Recall</th><th class="p-2">F1</th><th class="p-2">ROC-AUC</th></tr>';
+  data.comparison.forEach(r => {
+    compTable += `<tr class="border-t"><td class="p-2">${r.model}</td><td class="p-2 text-center">${r.accuracy}</td><td class="p-2 text-center">${r.precision}</td><td class="p-2 text-center">${r.recall}</td><td class="p-2 text-center">${r.f1}</td><td class="p-2 text-center">${r.roc_auc}</td></tr>`;
+  });
+  compTable += '</table>';
+  $('eval-comparison').innerHTML = compTable;
+
+  // ROC
+  Plotly.newPlot('eval-roc', [
+    { type: 'scatter', mode: 'lines', x: data.roc.fpr, y: data.roc.tpr, name: `Risk model (AUC ${data.roc.auc.toFixed(2)})`, line: { color: '#2563eb', width: 3 } },
+    { type: 'scatter', mode: 'lines', x: [0, 1], y: [0, 1], name: 'Chance', line: { color: '#9ca3af', dash: 'dash' } },
+  ], { height: 360, margin: { l: 40, r: 20, t: 20, b: 50 }, xaxis: { title: 'False positive rate' }, yaxis: { title: 'True positive rate' }, template: 'plotly_white', legend: { orientation: 'h', y: -0.3 } }, { responsive: true });
+
+  // Confusion matrix
+  const cm = data.confusion;
+  Plotly.newPlot('eval-confusion', [{
+    type: 'heatmap', z: cm, x: ['Predicted on track', 'Predicted at risk'], y: ['Actually on track', 'Actually at risk'],
+    colorscale: 'Blues', showscale: false,
+    text: cm.map(row => row.map(String)), texttemplate: '%{text}', textfont: { size: 20 },
+    hovertemplate: '%{y} / %{x}: %{z}<extra></extra>',
+  }], { height: 360, margin: { l: 120, r: 20, t: 20, b: 10 }, yaxis: { autorange: 'reversed' }, template: 'plotly_white' }, { responsive: true });
+
+  // Earliness
+  const e = data.earliness;
+  const counts = Array(e.n_items).fill(0);
+  e.positions.forEach(p => { if (p >= 1 && p <= e.n_items) counts[p - 1]++; });
+  const earlyTraces = [{
+    type: 'bar', x: Array.from({ length: e.n_items }, (_, i) => i + 1), y: counts,
+    marker: { color: '#0d9488' }, hovertemplate: 'Question %{x}: %{y} students<extra></extra>',
+  }];
+  const earlyLayout = { height: 360, margin: { l: 40, r: 20, t: 30, b: 50 }, xaxis: { title: 'Question number of first at-risk flag' }, yaxis: { title: 'At-risk students' }, bargap: 0.15, template: 'plotly_white' };
+  if (e.mean_questions) {
+    earlyLayout.shapes = [{ type: 'line', x0: e.mean_questions, x1: e.mean_questions, y0: 0, y1: Math.max(...counts) + 1, line: { color: '#dc2626', dash: 'dash' } }];
+    earlyLayout.annotations = [{ x: e.mean_questions, y: Math.max(...counts) + 0.5, text: `mean ${e.mean_questions}`, showarrow: false, font: { color: '#dc2626', size: 11 } }];
+  }
+  Plotly.newPlot('eval-earliness', earlyTraces, earlyLayout, { responsive: true });
+  $('eval-earliness-caption').textContent = `Flagged ${Math.round(e.flagged_fraction * 100)}% of at-risk test students after a mean of ${e.mean_questions} of ${e.n_items} questions.`;
+
+  // Feature importance
+  const impEntries = Object.entries(data.importances).sort((a, b) => a[1] - b[1]);
+  Plotly.newPlot('eval-importance', [{
+    type: 'bar', orientation: 'h',
+    x: impEntries.map(e => e[1]), y: impEntries.map(e => e[0]),
+    marker: { color: '#6366f1' },
+    text: impEntries.map(e => e[1].toFixed(2)), textposition: 'outside',
+  }], {
+    height: 340, margin: { l: 160, r: 40, t: 20, b: 20 },
+    xaxis: { title: 'RandomForest importance', range: [0, Math.max(...impEntries.map(e => e[1])) * 1.25] },
+    template: 'plotly_white', showlegend: false,
+  }, { responsive: true });
+}
+
+// =========================================================================
+// Init
+// =========================================================================
+$('studentName').addEventListener('keydown', e => { if (e.key === 'Enter') selectStudent(); });
+</script>
+</body>
+</html>
