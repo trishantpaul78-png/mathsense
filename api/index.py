@@ -50,7 +50,7 @@ import llm
 import simulator
 
 import numpy as np
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -111,6 +111,25 @@ def add_cors(response):
 @app.route("/api/<path:path>", methods=["OPTIONS"])
 def options_handler(path):
     return "", 204
+
+
+# ---------------------------------------------------------------------------
+# Frontend (for Render / standalone Flask)
+# ---------------------------------------------------------------------------
+PUBLIC_DIR = Path(ROOT) / "public"
+
+
+@app.route("/")
+def serve_index():
+    return send_from_directory(str(PUBLIC_DIR), "index.html")
+
+
+@app.route("/<path:filename>")
+def serve_static(filename):
+    target = PUBLIC_DIR / filename
+    if target.is_file():
+        return send_from_directory(str(PUBLIC_DIR), filename)
+    return send_from_directory(str(PUBLIC_DIR), "index.html")
 
 
 # ---------------------------------------------------------------------------
